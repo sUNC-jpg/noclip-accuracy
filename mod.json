@@ -1,0 +1,57 @@
+{
+	"geode": "4.0.0",
+	"gd": {
+		"win": "2.2074",
+		"android": "2.2074",
+		"mac": "2.2074",
+		"ios": "2.2074"
+	},
+	"id": "yourname.noclip-accuracy",
+	"name": "Noclip Accuracy",
+	"version": "v1.0.0",
+	"developer": "yourname",
+	"description": "Built-in noclip with an accuracy readout and a screen flash whenever you would have died.",
+	"settings": {
+		"enable-noclip": {
+			"type": "bool",
+			"name": "Enable Noclip",
+			"description": "Prevents dying from obstacles. Turn this off if you use a separate noclip mod.",
+			"default": true
+		},
+		"show-accuracy": {
+			"type": "bool",
+			"name": "Show Accuracy",
+			"description": "Shows your noclip accuracy in the corner of the screen.",
+			"default": true
+		},
+		"flash-enabled": {
+			"type": "bool",
+			"name": "Death Flash",
+			"description": "Flash the screen whenever you would have died.",
+			"default": true
+		},
+		"flash-color": {
+			"type": "rgba",
+			"name": "Flash Color",
+			"description": "Color and opacity of the death flash. Keep the alpha low for a subtle effect.",
+			"default": [255, 0, 0, 70]
+		},
+		"flash-duration": {
+			"type": "float",
+			"name": "Flash Duration",
+			"description": "How long the flash takes to fade out, in seconds.",
+			"default": 0.25,
+			"min": 0.05,
+			"max": 1.0,
+			"control": {
+				"slider": true
+			}
+		},
+		"flash-continuous": {
+			"type": "bool",
+			"name": "Flash Every Frame",
+			"description": "Re-trigger the flash on every frame you are inside a hazard, instead of once per hit.",
+			"default": false
+		}
+	}
+}
