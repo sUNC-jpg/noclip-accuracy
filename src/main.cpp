@@ -1,7 +1,14 @@
-#include <Geode/Geode.hpp>
-#include <Geode/modify/PlayLayer.hpp>
+#include "Common.hpp"
+#include "MenuPanel.hpp"
 
-using namespace geode::prelude;
+#include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/PauseLayer.hpp>
+#include <Geode/modify/MenuLayer.hpp>
+#include <Geode/modify/GJGameLevel.hpp>
+
+// ---------------------------------------------------------------------------
+// In-level: noclip, accuracy, death flash, FPS counter, game speed, safe mode
+// ---------------------------------------------------------------------------
 
 class $modify(NoclipPlayLayer, PlayLayer) {
 	struct Fields {
@@ -9,8 +16,12 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 		int deadFrames = 0;
 		bool hitThisFrame = false;
 		bool hitLastFrame = false;
+		bool originalTestMode = false;
 		CCLabelBMFont* accuracyLabel = nullptr;
+		CCLabelBMFont* fpsLabel = nullptr;
 		CCLayerColor* flashLayer = nullptr;
+		int fpsFrames = 0;
+		std::chrono::steady_clock::time_point fpsStart = std::chrono::steady_clock::now();
 	};
 
 	bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
@@ -18,6 +29,8 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 
 		auto winSize = CCDirector::get()->getWinSize();
 		auto f = m_fields.self();
+
+		f->originalTestMode = m_isTestMode;
 
 		// Full-screen flash overlay, invisible until a hit happens
 		f->flashLayer = CCLayerColor::create({ 255, 0, 0, 0 }, winSize.width, winSize.height);
@@ -35,6 +48,20 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 		f->accuracyLabel->setColor({ 80, 255, 80 });
 		this->addChild(f->accuracyLabel, 999);
 
+		// FPS counter, right under the accuracy readout
+		f->fpsLabel = CCLabelBMFont::create("FPS: --", "bigFont.fnt");
+		f->fpsLabel->setID("fps-label"_spr);
+		f->fpsLabel->setScale(0.35f);
+		f->fpsLabel->setOpacity(160);
+		f->fpsLabel->setAnchorPoint({ 0.f, 1.f });
+		f->fpsLabel->setPosition({ 8.f, winSize.height - 24.f });
+		f->fpsLabel->setVisible(nc::getBool("show-fps"));
+		this->addChild(f->fpsLabel, 999);
+
+		if (nc::getBool("fps-enabled")) {
+			nc::applyFps();
+		}
+
 		return true;
 	}
 
@@ -46,6 +73,7 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 		f->deadFrames = 0;
 		f->hitThisFrame = false;
 		f->hitLastFrame = false;
+		m_isTestMode = f->originalTestMode;
 		this->refreshAccuracyLabel();
 	}
 
@@ -57,7 +85,7 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 			m_fields->hitThisFrame = true;
 		}
 
-		bool noclip = Mod::get()->getSettingValue<bool>("enable-noclip");
+		bool noclip = nc::getBool("enable-noclip");
 		if (isAnticheat || !noclip) {
 			PlayLayer::destroyPlayer(player, object);
 		}
@@ -68,12 +96,15 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 
 		auto f = m_fields.self();
 
-		// Don't count the end-of-level animation against accuracy
+		// Don't count the end-of-level animation against accuracy, and run it at normal speed
 		if (m_hasCompletedLevel || m_levelEndAnimationStarted) {
+			nc::resetSpeed();
 			f->hitThisFrame = false;
 			f->hitLastFrame = false;
 			return;
 		}
+
+		nc::applySpeed();
 
 		f->totalFrames++;
 
@@ -81,7 +112,7 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 		if (hit) {
 			f->deadFrames++;
 
-			bool continuous = Mod::get()->getSettingValue<bool>("flash-continuous");
+			bool continuous = nc::getBool("flash-continuous");
 			if (continuous || !f->hitLastFrame) {
 				this->triggerDeathFlash();
 			}
@@ -92,18 +123,39 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 			this->refreshAccuracyLabel();
 		}
 
+		this->updateFpsCounter();
+
 		f->hitLastFrame = hit;
 		f->hitThisFrame = false;
 	}
 
+	// Safe mode: finish the level as if it were a test run, so nothing is saved or submitted
+	void levelComplete() {
+		if (nc::getBool("safe-mode")) {
+			m_isTestMode = true;
+		}
+		PlayLayer::levelComplete();
+		nc::resetSpeed();
+	}
+
+	void resume() {
+		PlayLayer::resume();
+		nc::applySpeed();
+	}
+
+	void onQuit() {
+		nc::resetSpeed();
+		PlayLayer::onQuit();
+	}
+
 	void triggerDeathFlash() {
-		if (!Mod::get()->getSettingValue<bool>("flash-enabled")) return;
+		if (!nc::getBool("flash-enabled")) return;
 
 		auto f = m_fields.self();
 		if (!f->flashLayer) return;
 
 		auto color = Mod::get()->getSettingValue<ccColor4B>("flash-color");
-		auto duration = static_cast<float>(Mod::get()->getSettingValue<double>("flash-duration"));
+		auto duration = static_cast<float>(nc::getDouble("flash-duration"));
 
 		f->flashLayer->stopAllActions();
 		f->flashLayer->setColor({ color.r, color.g, color.b });
@@ -115,7 +167,7 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 		auto f = m_fields.self();
 		if (!f->accuracyLabel) return;
 
-		bool show = Mod::get()->getSettingValue<bool>("show-accuracy");
+		bool show = nc::getBool("show-accuracy");
 		f->accuracyLabel->setVisible(show);
 		if (!show) return;
 
@@ -134,4 +186,79 @@ class $modify(NoclipPlayLayer, PlayLayer) {
 			f->accuracyLabel->setColor({ 255, 80, 80 });
 		}
 	}
+
+	void updateFpsCounter() {
+		auto f = m_fields.self();
+		if (!f->fpsLabel) return;
+
+		bool show = nc::getBool("show-fps");
+		f->fpsLabel->setVisible(show);
+
+		// measured with the real clock so game speed doesn't skew it
+		f->fpsFrames++;
+		auto now = std::chrono::steady_clock::now();
+		double elapsed = std::chrono::duration<double>(now - f->fpsStart).count();
+		if (elapsed >= 0.5) {
+			if (show) {
+				f->fpsLabel->setString(fmt::format("FPS: {:.0f}", static_cast<double>(f->fpsFrames) / elapsed).c_str());
+			}
+			f->fpsFrames = 0;
+			f->fpsStart = now;
+		}
+	}
 };
+
+// ---------------------------------------------------------------------------
+// Pause screen: floating player menu
+// ---------------------------------------------------------------------------
+
+class $modify(NoclipPauseLayer, PauseLayer) {
+	void customSetup() {
+		PauseLayer::customSetup();
+
+		// the pause screen always runs at normal speed
+		nc::resetSpeed();
+
+		if (!nc::getBool("pause-menu")) return;
+
+		auto panel = MenuPanel::create();
+		if (!panel) return;
+
+		panel->setID("player-menu"_spr);
+		this->addChild(panel, 100);
+	}
+};
+
+// ---------------------------------------------------------------------------
+// Main menu: apply the saved FPS setting once the game is up
+// ---------------------------------------------------------------------------
+
+class $modify(NoclipMenuLayer, MenuLayer) {
+	bool init() {
+		if (!MenuLayer::init()) return false;
+
+		static bool s_done = false;
+		if (!s_done) {
+			s_done = true;
+			nc::resetSpeed();
+			if (nc::getBool("fps-enabled")) {
+				nc::applyFps();
+			}
+		}
+
+		return true;
+	}
+};
+
+// ---------------------------------------------------------------------------
+// Safe mode: don't record progress percentages
+// ---------------------------------------------------------------------------
+
+#ifndef GEODE_IS_ANDROID
+class $modify(NoclipGameLevel, GJGameLevel) {
+	void savePercentage(int percent, bool isPracticeMode, int clicks, int attempts, bool isChkValid) {
+		if (nc::getBool("safe-mode")) return;
+		GJGameLevel::savePercentage(percent, isPracticeMode, clicks, attempts, isChkValid);
+	}
+};
+#endif

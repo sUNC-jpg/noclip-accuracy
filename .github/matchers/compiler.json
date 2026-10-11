@@ -1,0 +1,48 @@
+{
+	"problemMatcher": [
+		{
+			"owner": "clang-gcc",
+			"pattern": [
+				{
+					"regexp": "^(.+?):(\\d+):(\\d+): (warning|error|fatal error): (.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			]
+		},
+		{
+			"owner": "msvc",
+			"pattern": [
+				{
+					"regexp": "^(.+?)\\((\\d+),?(\\d*)\\)\\s*:\\s+(warning|error)\\s+\\w+:\\s*(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			]
+		},
+		{
+			"owner": "cmake",
+			"pattern": [
+				{
+					"regexp": "^(CMake Error.*)$",
+					"message": 1
+				}
+			]
+		},
+		{
+			"owner": "linker",
+			"pattern": [
+				{
+					"regexp": "^((?:ld\\.lld|lld-link|ld): error: .*)$",
+					"message": 1
+				}
+			]
+		}
+	]
+}

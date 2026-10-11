@@ -8,14 +8,26 @@
 	},
 	"id": "yourname.noclip-accuracy",
 	"name": "Noclip Accuracy",
-	"version": "v1.0.0",
+	"version": "v1.1.0",
 	"developer": "yourname",
-	"description": "Built-in noclip with an accuracy readout and a screen flash whenever you would have died.",
+	"description": "Noclip with accuracy tracking and a death flash, plus a floating pause-menu panel with safe mode, hitboxes, FPS counter, custom FPS and game speed.",
 	"settings": {
+		"pause-menu": {
+			"type": "bool",
+			"name": "Pause Menu Panel",
+			"description": "Show the floating, draggable Player Menu on the pause screen.",
+			"default": true
+		},
 		"enable-noclip": {
 			"type": "bool",
 			"name": "Enable Noclip",
 			"description": "Prevents dying from obstacles. Turn this off if you use a separate noclip mod.",
+			"default": true
+		},
+		"safe-mode": {
+			"type": "bool",
+			"name": "Safe Mode",
+			"description": "Never saves progress, completions, stars or percentages. Leave this on while using noclip or a changed game speed.",
 			"default": true
 		},
 		"show-accuracy": {
@@ -23,6 +35,12 @@
 			"name": "Show Accuracy",
 			"description": "Shows your noclip accuracy in the corner of the screen.",
 			"default": true
+		},
+		"show-fps": {
+			"type": "bool",
+			"name": "FPS Counter",
+			"description": "Shows your current frame rate under the accuracy readout.",
+			"default": false
 		},
 		"flash-enabled": {
 			"type": "bool",
@@ -52,6 +70,28 @@
 			"name": "Flash Every Frame",
 			"description": "Re-trigger the flash on every frame you are inside a hazard, instead of once per hit.",
 			"default": false
+		},
+		"fps-enabled": {
+			"type": "bool",
+			"name": "Custom FPS",
+			"description": "Run the game at the frame rate set below instead of the game's own limit.",
+			"default": false
+		},
+		"fps-value": {
+			"type": "int",
+			"name": "FPS",
+			"description": "Target frame rate used when Custom FPS is on.",
+			"default": 60,
+			"min": 10,
+			"max": 1000
+		},
+		"game-speed": {
+			"type": "float",
+			"name": "Game Speed",
+			"description": "Speed multiplier while playing a level. 1.00 is normal speed. Menus and the pause screen always run at normal speed.",
+			"default": 1.0,
+			"min": 0.1,
+			"max": 10.0
 		}
 	}
 }

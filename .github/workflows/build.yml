@@ -22,6 +22,9 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     steps:
       - uses: actions/checkout@v4
+      # turns compiler errors in the log into annotations that show up on the run page
+      - name: Register compiler problem matchers
+        run: echo "::add-matcher::.github/matchers/compiler.json"
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
